@@ -3,1218 +3,947 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LoL Coach — Seu coach de LoL em tempo real</title>
+<title>LoL Coach — Além do Coaching por Voz</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root {
-  --navy:    #060810;
-  --navy2:   #0C0E1A;
-  --navy3:   #111827;
-  --navy4:   #1e2a3a;
-  --blue:    #2563EB;
-  --blue2:   #3b82f6;
-  --blue3:   #60a5fa;
-  --blue4:   #93c5fd;
-  --glow:    #1d4ed8;
-  --text:    #f0f6ff;
-  --text2:   #94a3b8;
-  --text3:   #475569;
-  --accent:  #38bdf8;
-  --gold:    #fbbf24;
+/* ══════════════════════════════════════
+   TOKENS
+══════════════════════════════════════ */
+:root{
+  --navy:   #05070e;
+  --navy2:  #0b0f1c;
+  --navy3:  #111827;
+  --navy4:  #1c2a40;
+  --blue:   #1a5fff;
+  --blue2:  #3d7eff;
+  --blue3:  #70a6ff;
+  --blue4:  #b0ccff;
+  --cyan:   #00e5ff;
+  --gold:   #ffc234;
+  --red:    #ff3d5a;
+  --green:  #22d47a;
+  --text:   #eef2ff;
+  --text2:  #7a90bb;
+  --text3:  #3a4f6e;
+  --border: rgba(255,255,255,.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{font-family:'Syne',sans-serif;background:var(--navy);color:var(--text);overflow-x:hidden;}
+
+/* ══════════════════════════════════════
+   CURSOR
+══════════════════════════════════════ */
+.cursor,.cursor-trail{
+  position:fixed;pointer-events:none;z-index:9999;
+  border-radius:50%;transform:translate(-50%,-50%);
+}
+.cursor{width:8px;height:8px;background:var(--cyan);mix-blend-mode:screen;transition:width .15s,height .15s,background .2s;}
+.cursor-trail{
+  width:32px;height:32px;
+  border:1.5px solid rgba(0,229,255,.35);
+  transition:transform .2s cubic-bezier(.16,1,.3,1),width .2s,height .2s;
+}
+body:has(a:hover) .cursor{width:14px;height:14px;background:var(--blue2);}
+body:has(a:hover) .cursor-trail{width:48px;height:48px;border-color:rgba(29,95,255,.4);}
+body:has(.btn:hover) .cursor{background:var(--gold);}
+
+/* ══════════════════════════════════════
+   NOISE + SCANLINE
+══════════════════════════════════════ */
+body::after{
+  content:'';position:fixed;inset:0;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23f)' opacity='.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:900;
+}
+.scan{position:fixed;top:-100%;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.15),transparent);animation:scan 14s linear infinite;pointer-events:none;z-index:800;}
+@keyframes scan{to{top:110%;}}
+
+/* ══════════════════════════════════════
+   GRID BG
+══════════════════════════════════════ */
+.grid-bg{
+  position:fixed;inset:0;
+  background-image:linear-gradient(rgba(26,95,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(26,95,255,.03) 1px,transparent 1px);
+  background-size:72px 72px;
+  pointer-events:none;z-index:0;
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { scroll-behavior: smooth; }
-
-body {
-  font-family: 'Outfit', sans-serif;
-  background: var(--navy);
-  color: var(--text);
-  overflow-x: hidden;
-  cursor: default;
+/* ══════════════════════════════════════
+   NAV
+══════════════════════════════════════ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:600;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 52px;height:70px;
+  background:rgba(5,7,14,.75);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(26,95,255,.1);
+  transition:border-color .3s;
 }
+nav.solid{border-bottom-color:rgba(26,95,255,.25);}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-brand{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--blue3);}
+.nav-links{display:flex;gap:38px;list-style:none;}
+.nav-links a{font-size:13px;font-weight:500;color:var(--text2);text-decoration:none;letter-spacing:.04em;transition:color .2s;position:relative;}
+.nav-links a::after{content:'';position:absolute;bottom:-3px;left:0;width:0;height:1px;background:var(--blue2);transition:width .3s;}
+.nav-links a:hover{color:var(--text);}
+.nav-links a:hover::after{width:100%;}
+.nav-cta{font-size:13px;font-weight:600;background:var(--blue);color:#fff !important;padding:9px 24px;border-radius:6px;transition:all .2s !important;position:relative;overflow:hidden;}
+.nav-cta::after{display:none !important;}
+.nav-cta::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.12),transparent);opacity:0;transition:opacity .2s;}
+.nav-cta:hover{background:#1252d8 !important;transform:translateY(-1px);box-shadow:0 8px 30px rgba(26,95,255,.35);}
+.nav-cta:hover::before{opacity:1;}
 
-/* ─── NOISE OVERLAY ─── */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 0;
-  opacity: .4;
-}
-
-/* ─── GRID BG ─── */
-.grid-bg {
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(37,99,235,.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(37,99,235,.04) 1px, transparent 1px);
-  background-size: 60px 60px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ─── SCAN LINE ─── */
-.scanline {
-  position: fixed;
-  top: -100%;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(37,99,235,.3), transparent);
-  animation: scanline 8s linear infinite;
-  pointer-events: none;
-  z-index: 1;
-}
-@keyframes scanline { to { top: 110%; } }
-
-/* ─── NAVBAR ─── */
-nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 40px;
-  height: 64px;
-  background: rgba(6,8,16,.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(37,99,235,.15);
+/* ══════════════════════════════════════
+   SPLASH HERO — cinematic background slider
+══════════════════════════════════════ */
+.hero{
+  position:relative;
+  height:100vh;
+  display:flex;align-items:center;justify-content:flex-start;
+  overflow:hidden;
 }
 
-.nav-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
+/* Slides */
+.splash-slide{
+  position:absolute;inset:0;
+  background-size:cover;
+  background-position:center top;
+  opacity:0;
+  transition:opacity 1.4s cubic-bezier(.4,0,.2,1), transform 8s linear;
+  transform:scale(1.06);
+  z-index:1;
 }
-.nav-logo svg { flex-shrink: 0; }
-.nav-logo-text {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--blue4);
-  letter-spacing: 1px;
+.splash-slide.active{opacity:1;transform:scale(1);z-index:2;}
+.splash-slide.leaving{opacity:0;z-index:1;}
+
+/* Real Data Dragon splash arts */
+.slide-jinx{background-image:url('https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Jinx_0.jpg');}
+.slide-yasuo{background-image:url('https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Yasuo_0.jpg');}
+.slide-ahri{background-image:url('https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Ahri_0.jpg');}
+
+/* Dark overlay — left heavy so text pops */
+.hero-overlay{
+  position:absolute;inset:0;z-index:3;
+  background:linear-gradient(105deg,rgba(5,7,14,.92) 0%,rgba(5,7,14,.7) 45%,rgba(5,7,14,.15) 75%,rgba(5,7,14,.4) 100%);
+}
+.hero-overlay-bottom{
+  position:absolute;bottom:0;left:0;right:0;height:280px;z-index:3;
+  background:linear-gradient(to top,var(--navy) 0%,transparent 100%);
 }
 
-.nav-links {
-  display: flex;
-  gap: 32px;
-  list-style: none;
-}
-.nav-links a {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text2);
-  text-decoration: none;
-  letter-spacing: .03em;
-  transition: color .2s;
-  position: relative;
-}
-.nav-links a::after {
-  content: '';
-  position: absolute;
-  bottom: -4px;
-  left: 0;
-  width: 0;
-  height: 1px;
-  background: var(--blue2);
-  transition: width .2s;
-}
-.nav-links a:hover { color: var(--text); }
-.nav-links a:hover::after { width: 100%; }
-
-.nav-cta {
-  background: var(--blue);
-  color: #fff !important;
-  padding: 8px 20px;
-  border-radius: 6px;
-  font-weight: 600 !important;
-  transition: background .2s !important;
-}
-.nav-cta::after { display: none !important; }
-.nav-cta:hover { background: var(--glow) !important; color: #fff !important; }
-
-/* ─── HERO ─── */
-.hero {
-  position: relative;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 100px 40px 80px;
-  overflow: hidden;
-  z-index: 1;
+/* Content */
+.hero-content{
+  position:relative;z-index:4;
+  padding:0 52px;
+  max-width:740px;
 }
 
-/* Hex grid bg decoration */
-.hero-hex {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  opacity: .08;
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;font-weight:500;color:var(--cyan);
+  letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid rgba(0,229,255,.2);
+  padding:6px 18px;border-radius:30px;
+  background:rgba(0,229,255,.06);
+  margin-bottom:28px;
+  opacity:0;animation:rise .9s .1s forwards;
 }
-.hero-hex svg { width: 900px; height: 900px; }
+.badge-live{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:bpulse 2s infinite;}
+@keyframes bpulse{0%,100%{box-shadow:0 0 0 0 rgba(0,229,255,.5);}50%{box-shadow:0 0 0 8px rgba(0,229,255,0);}}
 
-/* Orb */
-.hero-orb {
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  border-radius: 50%;
-  background: radial-gradient(circle at center, rgba(37,99,235,.18) 0%, transparent 70%);
-  pointer-events: none;
+.hero-title{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(72px,10vw,148px);
+  line-height:.88;letter-spacing:2px;
+  margin-bottom:6px;
+  opacity:0;animation:rise .9s .25s forwards;
 }
-
-.hero-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--blue3);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  border: 1px solid rgba(37,99,235,.3);
-  padding: 6px 16px;
-  border-radius: 20px;
-  margin-bottom: 28px;
-  background: rgba(37,99,235,.08);
-  opacity: 0;
-  animation: fadeUp .8s .2s forwards;
-}
-.hero-kicker-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--blue2);
-  animation: pulse-dot 2s infinite;
-}
-@keyframes pulse-dot {
-  0%,100% { opacity:1; transform:scale(1); }
-  50% { opacity:.5; transform:scale(1.4); }
+.hero-title .ht1{display:block;color:var(--text);}
+.hero-title .ht2{
+  display:block;color:var(--blue2);
+  text-shadow:0 0 80px rgba(26,95,255,.5);
+  position:relative;
 }
 
-.hero-title {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(52px, 8vw, 96px);
-  font-weight: 700;
-  line-height: .95;
-  letter-spacing: -1px;
-  margin-bottom: 24px;
-  opacity: 0;
-  animation: fadeUp .8s .4s forwards;
-}
-.hero-title .line1 { color: var(--text); display: block; }
-.hero-title .line2 { color: var(--blue2); display: block; }
-.hero-title .line3 { color: var(--text2); display: block; font-size: .65em; font-weight: 500; letter-spacing: 0; }
-
-.hero-sub {
-  font-size: 17px;
-  color: var(--text2);
-  line-height: 1.65;
-  max-width: 560px;
-  margin: 0 auto 40px;
-  opacity: 0;
-  animation: fadeUp .8s .6s forwards;
+.hero-title .ht3{
+  display:block;
+  font-family:'Syne',sans-serif;
+  font-size:.22em;font-weight:500;
+  color:var(--text2);letter-spacing:4px;
+  margin-top:12px;
 }
 
-.hero-actions {
-  display: flex;
-  gap: 14px;
-  justify-content: center;
-  flex-wrap: wrap;
-  opacity: 0;
-  animation: fadeUp .8s .8s forwards;
+.hero-desc{
+  font-size:18px;font-weight:400;color:var(--text2);
+  line-height:1.72;margin:28px 0 44px;
+  max-width:520px;
+  opacity:0;animation:rise .9s .4s forwards;
+}
+.hero-desc strong{color:var(--text);font-weight:600;}
+
+.hero-actions{
+  display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  opacity:0;animation:rise .9s .55s forwards;
+}
+.btn{
+  font-family:'Syne',sans-serif;
+  font-size:15px;font-weight:600;
+  padding:15px 36px;border-radius:8px;
+  text-decoration:none;cursor:pointer;
+  border:none;display:inline-block;
+  transition:all .25s;position:relative;overflow:hidden;
+}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary::before{content:'';position:absolute;top:-50%;left:-60%;width:40%;height:200%;background:rgba(255,255,255,.12);transform:skewX(-20deg);transition:left .4s;}
+.btn-primary:hover{background:#1252d8;transform:translateY(-3px);box-shadow:0 14px 44px rgba(26,95,255,.4);}
+.btn-primary:hover::before{left:140%;}
+.btn-outline{background:transparent;color:var(--text2);border:1px solid rgba(255,255,255,.14);}
+.btn-outline:hover{border-color:rgba(255,255,255,.3);color:var(--text);}
+
+/* Slide indicators */
+.slide-dots{
+  position:absolute;bottom:48px;left:52px;z-index:5;
+  display:flex;gap:8px;align-items:center;
+  opacity:0;animation:rise 1s 1.2s forwards;
+}
+.sdot{
+  width:6px;height:6px;border-radius:50%;
+  background:rgba(255,255,255,.2);cursor:pointer;
+  transition:all .3s;border:none;padding:0;
+}
+.sdot.active{width:24px;border-radius:3px;background:var(--blue2);}
+.slide-name{
+  position:absolute;bottom:48px;right:52px;z-index:5;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,.25);
+  letter-spacing:.1em;text-transform:uppercase;
+  opacity:0;animation:rise 1s 1.2s forwards;
 }
 
-.btn-primary {
-  background: var(--blue);
-  color: #fff;
-  font-family: 'Outfit', sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 14px 32px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-  letter-spacing: .02em;
-  transition: all .2s;
-  position: relative;
-  overflow: hidden;
+/* HUD floating card */
+.hero-hud{
+  position:absolute;right:52px;bottom:100px;z-index:5;
+  width:360px;
+  opacity:0;animation:rise 1s 1s forwards;
 }
-.btn-primary::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,.1), transparent);
-  opacity: 0;
-  transition: opacity .2s;
+.hud{
+  background:rgba(11,15,28,.88);
+  border:1px solid rgba(26,95,255,.2);
+  border-radius:14px;padding:20px 22px;
+  backdrop-filter:blur(16px);
+  position:relative;
 }
-.btn-primary:hover { background: #1d4ed8; transform: translateY(-2px); }
-.btn-primary:hover::before { opacity: 1; }
+.hud::before{content:'';position:absolute;top:0;left:15%;right:15%;height:1px;background:linear-gradient(90deg,transparent,var(--blue2),transparent);}
+.hud-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.hud-live-tag{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan);letter-spacing:.08em;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#22d47a;animation:bpulse 1.5s infinite;}
+.hud-timer{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);}
+.hm{
+  background:rgba(26,95,255,.1);
+  border:1px solid rgba(26,95,255,.16);
+  border-radius:10px 10px 10px 0;
+  padding:11px 14px;margin-bottom:8px;
+  animation:msg-in .5s forwards;opacity:0;
+}
+.hm:nth-child(1){animation-delay:1.4s;}
+.hm:nth-child(2){animation-delay:2.3s;}
+.hm p{font-size:12.5px;color:var(--blue4);line-height:1.55;}
+.hm-meta{display:flex;gap:7px;margin-top:5px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text3);}
+.hm-tag{background:rgba(26,95,255,.2);color:var(--blue3);padding:1px 7px;border-radius:4px;}
+.hud-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:12px;}
+.hud-s{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:7px;padding:9px 6px;text-align:center;}
+.hud-sv{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--blue2);line-height:1;}
+.hud-sl{font-size:9px;color:var(--text3);margin-top:2px;letter-spacing:.05em;}
 
-.btn-secondary {
-  background: transparent;
-  color: var(--text2);
-  font-family: 'Outfit', sans-serif;
-  font-size: 15px;
-  font-weight: 500;
-  padding: 14px 32px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,.12);
-  cursor: pointer;
-  text-decoration: none;
-  transition: all .2s;
-}
-.btn-secondary:hover { border-color: var(--blue2); color: var(--text); }
+@keyframes rise{from{opacity:0;transform:translateY(26px);}to{opacity:1;transform:none;}}
+@keyframes msg-in{from{opacity:0;transform:translateX(-10px);}to{opacity:1;transform:none;}}
 
-/* Hero scroll indicator */
-.scroll-hint {
-  position: absolute;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  opacity: 0;
-  animation: fadeIn 1s 1.4s forwards;
+/* scroll hint */
+.scroll-hint{
+  position:absolute;bottom:32px;left:50%;transform:translateX(-50%);
+  z-index:5;display:flex;flex-direction:column;align-items:center;gap:6px;
+  opacity:0;animation:fadeIn 1s 1.6s forwards;
 }
-.scroll-hint span { font-size: 11px; color: var(--text3); letter-spacing: .1em; text-transform: uppercase; }
-.scroll-arrow {
-  width: 20px; height: 20px;
-  border-right: 1.5px solid var(--text3);
-  border-bottom: 1.5px solid var(--text3);
-  transform: rotate(45deg);
-  animation: bounce 2s infinite;
-}
-@keyframes bounce { 0%,100%{transform:rotate(45deg) translateY(0)} 50%{transform:rotate(45deg) translateY(4px)} }
+.scroll-hint span{font-size:10px;color:var(--text3);letter-spacing:.15em;text-transform:uppercase;}
+.scroll-line{width:1px;height:36px;background:linear-gradient(to bottom,var(--blue2),transparent);animation:scrl 2s ease-in-out infinite;}
+@keyframes scrl{0%{transform:scaleY(0);transform-origin:top;}50%{transform:scaleY(1);transform-origin:top;}51%{transform:scaleY(1);transform-origin:bottom;}100%{transform:scaleY(0);transform-origin:bottom;}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 
-/* Mock HUD floating */
-.hero-hud {
-  position: relative;
-  margin-top: 60px;
-  opacity: 0;
-  animation: fadeUp 1s 1s forwards;
-}
-.hud-frame {
-  background: rgba(17,24,39,.9);
-  border: 1px solid rgba(37,99,235,.25);
-  border-radius: 14px;
-  padding: 20px 24px;
-  width: 380px;
-  position: relative;
-  overflow: hidden;
-}
-.hud-frame::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--blue), transparent);
-}
-.hud-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.hud-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--blue3);
-  letter-spacing: .08em;
-}
-.hud-live {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  animation: pulse-dot 1.5s infinite;
-}
-.hud-time {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--text3);
-}
+/* ══════════════════════════════════════
+   SECTIONS
+══════════════════════════════════════ */
+.wrap{max-width:1220px;margin:0 auto;padding:0 52px;}
+section{position:relative;z-index:1;padding:120px 0;}
 
-.hud-bubble {
-  background: rgba(37,99,235,.12);
-  border: 1px solid rgba(37,99,235,.2);
-  border-radius: 10px 10px 10px 2px;
-  padding: 10px 14px;
-  margin-bottom: 8px;
-  position: relative;
+.eyebrow{
+  display:flex;align-items:center;gap:10px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--blue2);
+  letter-spacing:.16em;text-transform:uppercase;margin-bottom:16px;
 }
-.hud-bubble p {
-  font-size: 13px;
-  color: var(--blue4);
-  line-height: 1.5;
-}
-.hud-bubble .hud-tag {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  color: var(--text3);
-  margin-top: 5px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.hud-tag-label {
-  background: rgba(37,99,235,.2);
-  color: var(--blue3);
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 9px;
-}
+.eyebrow::before{content:'';width:26px;height:1px;background:var(--blue2);}
 
-.hud-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  margin-top: 12px;
+.h2{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(52px,6.5vw,88px);
+  line-height:.92;letter-spacing:1.5px;margin-bottom:20px;
 }
-.hud-stat {
-  background: rgba(255,255,255,.03);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 8px;
-  padding: 10px 8px;
-  text-align: center;
-}
-.hud-stat .v {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--blue2);
-  line-height: 1;
-}
-.hud-stat .l {
-  font-size: 9px;
-  color: var(--text3);
-  margin-top: 3px;
-  letter-spacing: .04em;
-}
+.h2 em{color:var(--blue2);font-style:normal;}
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
+.body{font-size:17px;color:var(--text2);line-height:1.78;max-width:600px;}
 
-/* ─── SECTIONS ─── */
-section {
-  position: relative;
-  z-index: 1;
-  padding: 100px 40px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
+/* ══════════════════════════════════════
+   SCROLL REVEAL
+══════════════════════════════════════ */
+[data-r]{opacity:0;transition:opacity .75s cubic-bezier(.16,1,.3,1),transform .75s cubic-bezier(.16,1,.3,1);}
+[data-r="up"]{transform:translateY(48px);}
+[data-r="left"]{transform:translateX(-48px);}
+[data-r="right"]{transform:translateX(48px);}
+[data-r="scale"]{transform:scale(.9);}
+[data-r="fade"]{transform:none;}
+[data-r].on{opacity:1;transform:none;}
 
-.section-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--blue3);
-  letter-spacing: .15em;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* ══════════════════════════════════════
+   PROBLEM — horizontal scroll track
+══════════════════════════════════════ */
+.prob-section{padding:120px 0 0;overflow:hidden;}
+.prob-header{padding:0 52px;max-width:1220px;margin:0 auto 64px;}
+.prob-track-wrap{overflow:hidden;position:relative;}
+.prob-track-wrap::before,.prob-track-wrap::after{
+  content:'';position:absolute;top:0;bottom:0;width:120px;z-index:2;pointer-events:none;
 }
-.section-label::before {
-  content: '';
-  width: 24px; height: 1px;
-  background: var(--blue2);
+.prob-track-wrap::before{left:0;background:linear-gradient(to right,var(--navy),transparent);}
+.prob-track-wrap::after{right:0;background:linear-gradient(to left,var(--navy),transparent);}
+.prob-track{display:flex;gap:0;padding:0 60px 80px;width:max-content;}
+.prob-card{
+  width:360px;flex-shrink:0;margin-right:20px;
+  background:var(--navy2);
+  border:1px solid var(--border);
+  border-left:2px solid var(--red);
+  border-radius:12px;padding:28px;
+  transition:transform .3s,border-color .3s;
 }
+.prob-card:hover{transform:translateY(-4px);border-left-color:#ff6b7a;}
+.prob-n{font-family:'Bebas Neue',sans-serif;font-size:56px;line-height:1;color:rgba(255,61,90,.12);margin-bottom:14px;}
+.prob-card h3{font-size:16px;font-weight:700;margin-bottom:8px;}
+.prob-card p{font-size:14px;color:var(--text2);line-height:1.65;}
 
-.section-title {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(36px, 5vw, 56px);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -.5px;
-  margin-bottom: 16px;
+/* ══════════════════════════════════════
+   STATS — BIG NUMBERS
+══════════════════════════════════════ */
+.stats-section{
+  position:relative;z-index:1;
+  background:rgba(11,15,28,.7);
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
 }
-.section-title span { color: var(--blue2); }
+.stats-grid{
+  max-width:1220px;margin:0 auto;
+  display:grid;grid-template-columns:repeat(4,1fr);
+}
+.stat-col{
+  padding:72px 44px;
+  border-right:1px solid var(--border);
+  text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+}
+.stat-col:last-child{border-right:none;}
+.stat-num{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(80px,8.5vw,124px);
+  line-height:1;color:var(--blue2);
+  letter-spacing:-2px;
+}
+.stat-num sup{font-size:.38em;color:var(--text2);letter-spacing:0;vertical-align:top;margin-top:.2em;}
+.stat-unit{font-size:.45em;color:var(--text2);letter-spacing:0;}
+.stat-desc{font-size:16px;color:var(--text2);line-height:1.6;max-width:200px;}
 
-.section-body {
-  font-size: 16px;
-  color: var(--text2);
-  line-height: 1.7;
-  max-width: 600px;
-}
+/* ══════════════════════════════════════
+   VS TABLE — THE KILLER SECTION
+══════════════════════════════════════ */
+.vs-section{padding:120px 0;}
+.vs-wrap{max-width:1220px;margin:0 auto;padding:0 52px;}
 
-/* ─── PROBLEM ─── */
-.problem-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 20px;
-  margin-top: 48px;
+.vs-labels{
+  display:grid;grid-template-columns:1fr 64px 1fr;
+  margin-bottom:0;border-bottom:1px solid var(--border);
+  padding-bottom:20px;margin-bottom:8px;
 }
-.prob-card {
-  background: var(--navy3);
-  border: 1px solid rgba(239,68,68,.15);
-  border-left: 3px solid #ef4444;
-  border-radius: 12px;
-  padding: 24px;
-  transition: transform .2s, border-color .2s;
-}
-.prob-card:hover { transform: translateY(-4px); border-color: #ef4444; }
-.prob-num {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 42px;
-  font-weight: 700;
-  color: rgba(239,68,68,.25);
-  line-height: 1;
-  margin-bottom: 12px;
-}
-.prob-card h3 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
-.prob-card p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+.vs-label-them{font-size:13px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;}
+.vs-label-us{font-size:13px;font-weight:600;color:var(--blue3);letter-spacing:.06em;text-transform:uppercase;text-align:right;}
 
-/* ─── FEATURES ─── */
-.features-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 80px;
-  align-items: center;
-  margin-top: 48px;
+.vs-rows{display:flex;flex-direction:column;}
+.vs-row{
+  display:grid;grid-template-columns:1fr 64px 1fr;
+  border-bottom:1px solid var(--border);
+  position:relative;
+  transition:background .2s;
 }
-.features-list { display: flex; flex-direction: column; gap: 32px; }
-.feature-item {
-  display: flex;
-  gap: 18px;
-  opacity: 0;
-  transform: translateX(-20px);
-  transition: opacity .5s, transform .5s;
+.vs-row:hover{background:rgba(26,95,255,.03);}
+.vs-row.hero-row .vs-us{background:rgba(26,95,255,.06);}
+.vs-them,.vs-us{padding:26px 28px;font-size:15px;line-height:1.65;}
+.vs-them{
+  color:var(--text3);
+  display:flex;align-items:center;
+  border-right:1px solid var(--border);
+  position:relative;
 }
-.feature-item.visible { opacity: 1; transform: none; }
-.feature-icon {
-  width: 44px; height: 44px;
-  border-radius: 10px;
-  background: rgba(37,99,235,.15);
-  border: 1px solid rgba(37,99,235,.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+/* strike-through on scroll */
+.vs-them .strike{
+  position:absolute;left:28px;right:28px;
+  height:1px;background:rgba(255,255,255,.14);
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .6s cubic-bezier(.16,1,.3,1);
+  top:50%;
 }
-.feature-icon svg { width: 20px; height: 20px; stroke: var(--blue2); }
-.feature-text h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
-.feature-text p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+.vs-them.struck .strike{transform:scaleX(1);}
 
-/* App mockup */
-.app-mockup {
-  background: var(--navy3);
-  border: 1px solid var(--navy4);
-  border-radius: 16px;
-  overflow: hidden;
-  position: relative;
+.vs-mid{
+  display:flex;align-items:center;justify-content:center;
+  border-right:1px solid var(--border);
+  font-family:'Bebas Neue',sans-serif;font-size:14px;
+  color:var(--text3);letter-spacing:2px;
 }
-.app-mockup::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--blue), transparent);
+.vs-us{
+  display:flex;flex-direction:column;justify-content:center;gap:6px;
+  background:rgba(26,95,255,.025);
 }
-.app-top-bar {
-  background: var(--navy2);
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--navy4);
+.vs-us strong{font-size:17px;font-weight:700;color:var(--text);}
+.vs-us p{font-size:14px;color:var(--text2);line-height:1.65;}
+.vs-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:'JetBrains Mono',monospace;font-size:9px;
+  padding:3px 10px;border-radius:4px;align-self:flex-start;
+  margin-top:4px;letter-spacing:.06em;
 }
-.app-top-bar-dots { display: flex; gap: 6px; }
-.app-dot { width: 10px; height: 10px; border-radius: 50%; }
-.app-dot.r { background: #ef4444; }
-.app-dot.y { background: #f59e0b; }
-.app-dot.g { background: #22c55e; }
-.app-top-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--text3);
-}
-.app-live-badge {
-  display: flex; align-items: center; gap: 5px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px; color: #22c55e;
-}
-.live-dot { width:6px;height:6px;border-radius:50%;background:#22c55e;animation:pulse-dot 1.5s infinite; }
-.app-body { padding: 20px; }
-.coach-msg {
-  background: rgba(37,99,235,.1);
-  border: 1px solid rgba(37,99,235,.2);
-  border-radius: 10px 10px 10px 0;
-  padding: 12px 16px;
-  margin-bottom: 10px;
-  opacity: 0;
-  animation: msgAppear .5s forwards;
-}
-.coach-msg:nth-child(2) { animation-delay: .8s; }
-.coach-msg:nth-child(3) { animation-delay: 1.6s; }
-@keyframes msgAppear {
-  from { opacity:0; transform:translateY(8px); }
-  to   { opacity:1; transform:none; }
-}
-.coach-msg p { font-size: 13px; color: var(--blue4); line-height: 1.55; }
-.coach-msg .msg-meta {
-  display: flex; gap: 8px; margin-top: 6px;
-  font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text3);
-}
-.msg-cat {
-  background: rgba(37,99,235,.2); color: var(--blue3);
-  padding: 1px 7px; border-radius: 4px; font-size: 9px;
-}
+.badge-gold{background:rgba(255,194,52,.12);color:var(--gold);border:1px solid rgba(255,194,52,.25);}
+.badge-blue{background:rgba(26,95,255,.15);color:var(--blue3);border:1px solid rgba(26,95,255,.25);}
 
-.app-stats-row {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 16px;
+/* ══════════════════════════════════════
+   BENTO FEATURES
+══════════════════════════════════════ */
+.bento{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  grid-auto-rows:auto;
+  gap:16px;margin-top:64px;
 }
-.app-stat {
-  background: rgba(255,255,255,.03);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 8px; padding: 12px; text-align: center;
+.bc{
+  background:var(--navy2);border:1px solid var(--border);
+  border-radius:16px;padding:32px;
+  position:relative;overflow:hidden;
+  transition:border-color .3s,transform .3s;
 }
-.app-stat .av {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 26px; font-weight: 700; color: var(--blue2); line-height: 1;
-}
-.app-stat .al { font-size: 10px; color: var(--text3); margin-top: 3px; }
-.app-stat .atrend {
-  font-size: 10px; color: #22c55e; margin-top: 2px; display: flex;
-  align-items: center; justify-content: center; gap: 3px;
-}
+.bc:hover{transform:translateY(-4px);}
+.bc::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(26,95,255,.5),transparent);opacity:0;transition:opacity .3s;}
+.bc:hover::after{opacity:1;}
+.bc.w2{grid-column:span 2;}
+.bc.accent{border-color:rgba(26,95,255,.18);background:rgba(26,95,255,.04);}
+.bc.gold{border-color:rgba(255,194,52,.18);background:rgba(255,194,52,.03);}
+.bc-icon{width:44px;height:44px;border-radius:10px;background:rgba(26,95,255,.12);border:1px solid rgba(26,95,255,.2);display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+.bc-icon svg{width:20px;height:20px;stroke:var(--blue2);}
+.bc-icon.g{background:rgba(255,194,52,.1);border-color:rgba(255,194,52,.2);}
+.bc-icon.g svg{stroke:var(--gold);}
+.bc h3{font-size:19px;font-weight:700;margin-bottom:10px;}
+.bc p{font-size:14px;color:var(--text2);line-height:1.68;}
+.bc-excl{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 9px;border-radius:4px;background:rgba(255,194,52,.12);color:var(--gold);border:1px solid rgba(255,194,52,.25);margin-top:12px;letter-spacing:.06em;}
 
-/* ─── STATS ─── */
-.stats-full {
-  padding: 0 40px 100px;
-  max-width: 1200px;
-  margin: 0 auto;
-  position: relative;
-  z-index: 1;
-}
-.stats-row {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
-}
-.big-stat {
-  background: var(--navy3);
-  border: 1px solid var(--navy4);
-  border-radius: 14px; padding: 32px 28px;
-  position: relative; overflow: hidden;
-  transition: border-color .2s, transform .2s;
-}
-.big-stat:hover { border-color: rgba(37,99,235,.4); transform: translateY(-4px); }
-.big-stat::before {
-  content: '';
-  position: absolute; top:0; left:0; right:0; height:1px;
-  background: linear-gradient(90deg, transparent, rgba(37,99,235,.4), transparent);
-  opacity: 0; transition: opacity .2s;
-}
-.big-stat:hover::before { opacity: 1; }
-.big-stat-num {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 52px; font-weight: 700; line-height: 1;
-  color: var(--blue2); margin-bottom: 8px;
-}
-.big-stat-label { font-size: 14px; color: var(--text2); line-height: 1.5; }
-.big-stat-bg {
-  position: absolute; bottom: -10px; right: -10px;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 80px; font-weight: 700;
-  color: rgba(37,99,235,.04); line-height: 1; pointer-events: none;
-}
+/* chat mockup */
+.mini-chat{display:flex;flex-direction:column;gap:8px;margin-top:20px;}
+.mc{border-radius:10px;padding:11px 14px;font-size:13px;line-height:1.5;opacity:0;}
+.mc.l{background:rgba(26,95,255,.12);border:1px solid rgba(26,95,255,.15);color:var(--blue4);border-radius:10px 10px 10px 0;animation:msg-in .5s forwards;}
+.mc.r{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:var(--text2);border-radius:10px 10px 0 10px;animation:msg-in .5s forwards;align-self:flex-end;}
+.mc:nth-child(1){animation-delay:.2s;}
+.mc:nth-child(2){animation-delay:.9s;}
+.mc:nth-child(3){animation-delay:1.6s;}
 
-/* ─── HOW IT WORKS ─── */
-.steps {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-top: 48px;
-  position: relative;
-}
-.steps::before {
-  content: '';
-  position: absolute;
-  top: 32px; left: calc(16.67% + 24px); right: calc(16.67% + 24px);
-  height: 1px;
-  background: linear-gradient(90deg, var(--blue), rgba(37,99,235,.2), var(--blue));
-}
-.step {
-  background: var(--navy3);
-  border: 1px solid var(--navy4);
-  border-radius: 14px; padding: 28px;
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity .5s, transform .5s, border-color .2s;
-}
-.step.visible { opacity: 1; transform: none; }
-.step:hover { border-color: rgba(37,99,235,.3); }
-.step-num {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  background: var(--navy2);
-  border: 2px solid var(--blue);
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 18px; font-weight: 700; color: var(--blue2);
-  margin-bottom: 16px; position: relative; z-index: 1;
-}
-.step h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
-.step p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+/* progress bars */
+.prog{margin-top:20px;display:flex;flex-direction:column;gap:10px;}
+.prog-row{display:flex;align-items:center;gap:10px;}
+.prog-lbl{font-size:12px;color:var(--text2);width:76px;flex-shrink:0;}
+.prog-track{flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:3px;width:0;transition:width 1.3s cubic-bezier(.16,1,.3,1);}
+.prog-fill.b{background:var(--blue2);}
+.prog-fill.g{background:var(--gold);}
+.prog-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);width:32px;text-align:right;}
 
-/* ─── ROLES ─── */
-.roles-grid {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 40px;
-}
-.role-card {
-  background: var(--navy3);
-  border: 1px solid var(--navy4);
-  border-radius: 12px; padding: 20px 16px;
-  text-align: center;
-  transition: border-color .2s, transform .2s;
-  cursor: default;
-}
-.role-card:hover { border-color: rgba(37,99,235,.4); transform: translateY(-4px); }
-.role-icon {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: rgba(37,99,235,.12);
-  border: 1px solid rgba(37,99,235,.25);
-  margin: 0 auto 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px;
-}
-.role-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-.role-card p { font-size: 11px; color: var(--text3); line-height: 1.5; }
-.role-tags { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
-.role-tag {
-  font-size: 10px; color: var(--blue3);
-  background: rgba(37,99,235,.1);
-  border: 1px solid rgba(37,99,235,.15);
-  padding: 2px 6px; border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace;
-}
+/* JRI pill row */
+.jri-pills{display:flex;gap:10px;margin-top:18px;}
+.jri-pill{flex:1;border-radius:8px;padding:11px 8px;text-align:center;border:1px solid;display:flex;flex-direction:column;align-items:center;gap:5px;}
+.jri-pill.g{background:rgba(34,212,122,.08);border-color:rgba(34,212,122,.2);}
+.jri-pill.y{background:rgba(255,194,52,.08);border-color:rgba(255,194,52,.2);}
+.jri-pill.r{background:rgba(255,61,90,.08);border-color:rgba(255,61,90,.2);}
+.jri-dot{width:8px;height:8px;border-radius:50%;}
+.jri-pill.g .jri-dot{background:var(--green);}
+.jri-pill.y .jri-dot{background:var(--gold);}
+.jri-pill.r .jri-dot{background:var(--red);}
+.jri-pill span{font-size:11px;font-weight:700;}
+.jri-pill.g span{color:var(--green);}
+.jri-pill.y span{color:var(--gold);}
+.jri-pill.r span{color:var(--red);}
+.jri-pill small{font-size:10px;color:var(--text3);}
 
-/* ─── CTA ─── */
-.cta-section {
-  position: relative;
-  z-index: 1;
-  padding: 120px 40px;
-  text-align: center;
-  overflow: hidden;
+/* ══════════════════════════════════════
+   ROLES
+══════════════════════════════════════ */
+.roles-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:56px;}
+.role-card{
+  background:var(--navy2);border:1px solid var(--border);border-radius:14px;
+  padding:22px 16px;text-align:center;
+  transition:border-color .3s,transform .3s,background .3s;cursor:default;
 }
-.cta-inner {
-  max-width: 700px; margin: 0 auto; position: relative; z-index: 1;
-}
-.cta-glow {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%,-50%);
-  width: 600px; height: 300px;
-  background: radial-gradient(ellipse at center, rgba(37,99,235,.12) 0%, transparent 70%);
-  pointer-events: none;
-}
-.cta-title {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(40px, 6vw, 72px);
-  font-weight: 700; line-height: 1;
-  margin-bottom: 20px;
-}
-.cta-title span { color: var(--blue2); }
-.cta-sub { font-size: 17px; color: var(--text2); line-height: 1.65; margin-bottom: 40px; }
-.cta-note { font-size: 12px; color: var(--text3); margin-top: 16px; }
+.role-card:hover{border-color:rgba(26,95,255,.28);transform:translateY(-5px);background:rgba(26,95,255,.04);}
+.role-card:hover .role-ico{transform:scale(1.15);}
+.role-ico{font-size:28px;display:block;margin-bottom:12px;transition:transform .3s;line-height:1;}
+.role-card h3{font-size:15px;font-weight:700;margin-bottom:5px;}
+.role-card p{font-size:11px;color:var(--text3);margin-bottom:10px;}
+.role-ins{display:flex;flex-direction:column;gap:4px;}
+.ri{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--blue3);background:rgba(26,95,255,.08);border:1px solid rgba(26,95,255,.12);padding:2px 6px;border-radius:4px;}
 
-/* ─── FOOTER ─── */
-footer {
-  position: relative; z-index: 1;
-  border-top: 1px solid var(--navy4);
-  padding: 32px 40px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.footer-logo {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 16px; font-weight: 700; color: var(--text3);
-}
-.footer-copy { font-size: 12px; color: var(--text3); }
-.footer-links { display: flex; gap: 20px; }
-.footer-links a { font-size: 12px; color: var(--text3); text-decoration: none; transition: color .2s; }
-.footer-links a:hover { color: var(--text2); }
+/* ══════════════════════════════════════
+   STEPS
+══════════════════════════════════════ */
+.steps-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:56px;position:relative;}
+.steps-grid::before{content:'';position:absolute;top:30px;left:calc(16.67% + 20px);right:calc(16.67% + 20px);height:1px;background:linear-gradient(90deg,var(--blue2),rgba(26,95,255,.1),var(--blue2));}
+.step{background:var(--navy2);border:1px solid var(--border);border-radius:14px;padding:30px 26px;position:relative;z-index:1;transition:border-color .3s,transform .3s;}
+.step:hover{border-color:rgba(26,95,255,.22);transform:translateY(-4px);}
+.step-n{width:42px;height:42px;border-radius:50%;background:var(--navy);border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--blue2);margin-bottom:18px;}
+.step h3{font-size:18px;font-weight:700;margin-bottom:9px;}
+.step p{font-size:14px;color:var(--text2);line-height:1.68;}
 
-/* ─── DIVIDER LINE ─── */
-.divider-line {
-  position: relative; z-index: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--navy4) 20%, var(--navy4) 80%, transparent);
-  margin: 0 40px;
+/* ══════════════════════════════════════
+   CTA — SPLASH BG
+══════════════════════════════════════ */
+.cta-section{
+  position:relative;overflow:hidden;
+  padding:160px 0;text-align:center;
+  z-index:1;
 }
-
-/* ─── SCROLL ANIMATIONS ─── */
-.reveal {
-  opacity: 0; transform: translateY(30px);
-  transition: opacity .6s, transform .6s;
+.cta-bg{
+  position:absolute;inset:0;
+  background-image:url('https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Yasuo_0.jpg');
+  background-size:cover;background-position:center;
+  opacity:.08;
+  transform:scale(1.04);
 }
-.reveal.visible { opacity: 1; transform: none; }
+.cta-overlay{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(26,95,255,.1) 0%,var(--navy) 70%);}
+.cta-inner{position:relative;z-index:2;max-width:760px;margin:0 auto;padding:0 52px;}
+.cta-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(60px,8vw,108px);line-height:.9;letter-spacing:1.5px;margin-bottom:24px;}
+.cta-title em{color:var(--blue2);font-style:normal;}
+.cta-sub{font-size:18px;color:var(--text2);line-height:1.72;margin-bottom:48px;}
+.cta-note{font-size:12px;color:var(--text3);margin-top:18px;letter-spacing:.04em;}
 
-/* ─── RESPONSIVE ─── */
-@media (max-width: 900px) {
-  .problem-grid { grid-template-columns: 1fr; }
-  .features-layout { grid-template-columns: 1fr; }
-  .stats-row { grid-template-columns: 1fr 1fr; }
-  .steps { grid-template-columns: 1fr; }
-  .steps::before { display: none; }
-  .roles-grid { grid-template-columns: 1fr 1fr; }
-  nav { padding: 0 20px; }
-  .nav-links { display: none; }
+/* ══════════════════════════════════════
+   FOOTER
+══════════════════════════════════════ */
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:32px 52px;display:flex;align-items:center;justify-content:space-between;}
+.footer-brand{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:var(--text3);}
+.footer-copy{font-size:12px;color:var(--text3);}
+.footer-links{display:flex;gap:22px;}
+.footer-links a{font-size:12px;color:var(--text3);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--text2);}
+
+/* ══════════════════════════════════════
+   DIVIDER
+══════════════════════════════════════ */
+.div{height:1px;background:linear-gradient(90deg,transparent,var(--border) 20%,var(--border) 80%,transparent);position:relative;z-index:1;}
+
+/* ══════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════ */
+@media(max-width:960px){
+  nav{padding:0 24px;}.nav-links{display:none;}
+  .hero-content{padding:0 24px;}.hero-hud{display:none;}
+  .slide-dots,.slide-name{left:24px;right:24px;}
+  .wrap{padding:0 24px;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .stat-col{border-right:none;border-bottom:1px solid var(--border);padding:48px 24px;}
+  .vs-wrap{padding:0 24px;}
+  .vs-row{grid-template-columns:1fr 40px 1fr;}
+  .bento{grid-template-columns:1fr;}.bc.w2{grid-column:span 1;}
+  .roles-grid{grid-template-columns:1fr 1fr;}
+  .steps-grid{grid-template-columns:1fr;}.steps-grid::before{display:none;}
+  footer{padding:24px;flex-direction:column;gap:12px;text-align:center;}
+  .footer-links{justify-content:center;}
 }
-
-/* ─── TYPING EFFECT ─── */
-.typewriter {
-  border-right: 2px solid var(--blue2);
-  animation: blink .7s infinite;
-  white-space: nowrap; overflow: hidden;
-}
-@keyframes blink { 0%,50%{border-color:var(--blue2)} 51%,100%{border-color:transparent} }
-
-/* ─── COUNTER ANIMATION ─── */
-.count-up { transition: all 0.1s; }
 </style>
 </head>
 <body>
-
+<div class="cursor" id="cur"></div>
+<div class="cursor-trail" id="ctr"></div>
+<div class="scan"></div>
 <div class="grid-bg"></div>
-<div class="scanline"></div>
 
-<!-- NAVBAR -->
-<nav>
+<!-- ══ NAV ══ -->
+<nav id="nav">
   <a class="nav-logo" href="#">
-    <svg width="30" height="30" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-      <rect width="512" height="512" rx="100" fill="#0C0E1A"/>
-      <polygon points="256,50 420,150 420,362 256,462 92,362 92,150" fill="none" stroke="#1e3a5f" stroke-width="4"/>
-      <polygon points="256,128 368,192 368,320 256,384 144,320 144,192" fill="#111827"/>
-      <polygon points="256,128 368,192 368,320 256,384 144,320 144,192" fill="none" stroke="#2563EB" stroke-width="3"/>
-      <path d="M256,150 C224,150 198,171 194,202 L188,278 C188,296 200,310 218,314 L240,318 L240,340 L272,340 L272,318 L294,314 C312,310 324,296 324,278 L318,202 C314,171 288,150 256,150 Z" fill="#1e3a5f"/>
-      <ellipse cx="228" cy="250" rx="11" ry="9" fill="#3B82F6"/>
-      <ellipse cx="228" cy="250" rx="5" ry="4" fill="#93C5FD"/>
-      <ellipse cx="284" cy="250" rx="11" ry="9" fill="#3B82F6"/>
-      <ellipse cx="284" cy="250" rx="5" ry="4" fill="#93C5FD"/>
-      <text x="256" y="400" text-anchor="middle" font-family="sans-serif" font-size="40" font-weight="800" fill="#3B82F6">LC</text>
-    </svg>
-    <span class="nav-logo-text">LOL COACH</span>
+    <svg width="34" height="34" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#05070e"/><polygon points="256,50 420,150 420,362 256,462 92,362 92,150" fill="none" stroke="#1c2a40" stroke-width="4"/><polygon points="256,128 368,192 368,320 256,384 144,320 144,192" fill="#0b0f1c"/><polygon points="256,128 368,192 368,320 256,384 144,320 144,192" fill="none" stroke="#1a5fff" stroke-width="3"/><path d="M256,150 C222,150 196,172 192,204 L186,280 C186,300 199,314 218,318 L240,322 L240,344 L272,344 L272,322 L294,318 C313,314 326,300 326,280 L320,204 C316,172 290,150 256,150 Z" fill="#1c2a40"/><ellipse cx="228" cy="252" rx="12" ry="10" fill="#1a5fff"/><ellipse cx="228" cy="252" rx="5" ry="4" fill="#b0ccff"/><ellipse cx="284" cy="252" rx="12" ry="10" fill="#1a5fff"/><ellipse cx="284" cy="252" rx="5" ry="4" fill="#b0ccff"/><text x="256" y="402" text-anchor="middle" font-family="sans-serif" font-size="42" font-weight="800" fill="#3d7eff">LC</text></svg>
+    <span class="nav-brand">LOL COACH</span>
   </a>
   <ul class="nav-links">
-    <li><a href="#problema">O Problema</a></li>
-    <li><a href="#solucao">Como Funciona</a></li>
+    <li><a href="#problema">Problema</a></li>
+    <li><a href="#diferencial">Diferencial</a></li>
+    <li><a href="#features">Como funciona</a></li>
     <li><a href="#roles">Roles</a></li>
-    <li><a href="#cta" class="nav-cta">Quero Testar</a></li>
+    <li><a href="#cta" class="nav-cta btn">Acesso antecipado</a></li>
   </ul>
 </nav>
 
-<!-- HERO -->
-<div class="hero">
-  <div class="hero-hex">
-    <svg viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="hexPattern" x="0" y="0" width="100" height="87" patternUnits="userSpaceOnUse">
-          <polygon points="50,0 100,25 100,75 50,100 0,75 0,25" fill="none" stroke="#2563EB" stroke-width="0.5"/>
-        </pattern>
-      </defs>
-      <rect width="900" height="900" fill="url(#hexPattern)"/>
-    </svg>
-  </div>
-  <div class="hero-orb"></div>
+<!-- ══ HERO ══ -->
+<div class="hero" id="hero">
+  <!-- Splash backgrounds — Data Dragon CDN oficial da Riot -->
+  <div class="splash-slide slide-jinx active" id="slide-0"></div>
+  <div class="splash-slide slide-yasuo" id="slide-1"></div>
+  <div class="splash-slide slide-ahri" id="slide-2"></div>
 
-  <div class="hero-kicker">
-    <div class="hero-kicker-dot"></div>
-    coaching em tempo real para league of legends
-  </div>
+  <div class="hero-overlay"></div>
+  <div class="hero-overlay-bottom"></div>
 
-  <h1 class="hero-title">
-    <span class="line1">O COACH QUE</span>
-    <span class="line2">FALA COM VOCÊ</span>
-    <span class="line3">durante a partida</span>
-  </h1>
-
-  <p class="hero-sub">
-    Análise inteligente do seu jogo em tempo real. Feedback por voz no momento exato do erro. Evolução partida a partida, comparada com a sua própria história.
-  </p>
-
-  <div class="hero-actions">
-    <a href="#cta" class="btn-primary">Quero acesso antecipado</a>
-    <a href="#solucao" class="btn-secondary">Ver como funciona</a>
+  <div class="hero-content">
+    <div class="hero-badge"><div class="badge-live"></div>coaching em tempo real para lol</div>
+    <h1 class="hero-title">
+      <span class="ht1">LOL COACH</span>
+      <span class="ht2">ALÉM DA VOZ</span>
+      <span class="ht3">o único que aprende com você</span>
+    </h1>
+    <p class="hero-desc">Voz em tempo real. Briefing na loading screen.<br><strong>E o único que compara você com você mesmo</strong> — partida a partida.</p>
+    <div class="hero-actions">
+      <a href="#cta" class="btn btn-primary">Quero acesso antecipado</a>
+      <a href="#diferencial" class="btn btn-outline">Ver o diferencial</a>
+    </div>
   </div>
 
+  <!-- HUD -->
   <div class="hero-hud">
-    <div class="hud-frame">
-      <div class="hud-header">
-        <div class="hud-status">
-          <div class="hud-live"></div>
-          COACH ATIVO
-        </div>
-        <div class="hud-time" id="hud-timer">18:42</div>
+    <div class="hud">
+      <div class="hud-head">
+        <div class="hud-live-tag"><div class="live-dot"></div>COACH ATIVO</div>
+        <div class="hud-timer" id="hclock">14:38</div>
       </div>
-      <div class="hud-bubble">
-        <p>Dragon em 35s. Você está na top sem ward no pit. Comece a rotar agora.</p>
-        <div class="hud-tag">
-          <span class="hud-tag-label">objetivo</span>
-          agora mesmo
-        </div>
-      </div>
-      <div class="hud-bubble" style="border-radius:10px 10px 2px 10px;margin-left:30px">
-        <p>Wave congelada na sua tower. Farm essa onda antes de rotar.</p>
-        <div class="hud-tag">
-          <span class="hud-tag-label">farm</span>
-          há 1 min
-        </div>
-      </div>
-      <div class="hud-stats">
-        <div class="hud-stat"><div class="v" id="cs-counter">6.8</div><div class="l">CS/MIN</div></div>
-        <div class="hud-stat"><div class="v" style="color:#22c55e">+1.2</div><div class="l">VS SUA MÉDIA</div></div>
-        <div class="hud-stat"><div class="v">14</div><div class="l">MIN</div></div>
+      <div class="hm"><p>Dragon em 38s. Sem ward no pit e você está na top. Rota com o jungle agora.</p><div class="hm-meta"><span class="hm-tag">objetivo</span>agora · top</div></div>
+      <div class="hm"><p>CS/min 0.9 abaixo da sua média com esse campeão. Priorize camps entre ganks.</p><div class="hm-meta"><span class="hm-tag">histórico pessoal</span>12:40</div></div>
+      <div class="hud-row">
+        <div class="hud-s"><div class="hud-sv">6.4</div><div class="hud-sl">CS/MIN</div></div>
+        <div class="hud-s"><div class="hud-sv" style="color:var(--green)">+0.9</div><div class="hud-sl">VS MÉDIA</div></div>
+        <div class="hud-s"><div class="hud-sv">3</div><div class="hud-sl">GANKS</div></div>
       </div>
     </div>
   </div>
 
-  <div class="scroll-hint">
-    <span>scroll</span>
-    <div class="scroll-arrow"></div>
+  <!-- Slide indicators -->
+  <div class="slide-dots" id="sdots">
+    <button class="sdot active" onclick="goSlide(0)"></button>
+    <button class="sdot" onclick="goSlide(1)"></button>
+    <button class="sdot" onclick="goSlide(2)"></button>
   </div>
+  <div class="slide-name" id="sname">Jinx — Get Excited!</div>
+  <div class="scroll-hint"><span>scroll</span><div class="scroll-line"></div></div>
 </div>
 
-<!-- PROBLEM -->
-<section id="problema">
-  <div class="section-label reveal">o problema</div>
-  <h2 class="section-title reveal">Você joga, erra, e <span>nunca sabe por quê.</span></h2>
-  <p class="section-body reveal">Milhões de jogadores travam no mesmo elo por meses. O feedback chega tarde demais — ou não chega.</p>
-  <div class="problem-grid">
-    <div class="prob-card reveal">
-      <div class="prob-num">01</div>
-      <h3>Feedback sempre tarde demais</h3>
-      <p>Replay e dashboard pós-partida chegam horas depois. O contexto emocional e situacional do erro já se perdeu completamente.</p>
-    </div>
-    <div class="prob-card reveal" style="transition-delay:.1s">
-      <div class="prob-num">02</div>
-      <h3>Coaching humano inacessível</h3>
-      <p>Ter um coach profissional custa caro e não está disponível para a maioria. A maioria dos jogadores evolui sozinha — ou não evolui.</p>
-    </div>
-    <div class="prob-card reveal" style="transition-delay:.2s">
-      <div class="prob-num">03</div>
-      <h3>Ferramentas existentes são genéricas</h3>
-      <p>Números frios sem contexto. Nenhuma ferramenta atual fala com você no momento exato do erro, durante a partida.</p>
-    </div>
+<!-- ══ PROBLEM ══ -->
+<div class="prob-section" id="problema">
+  <div class="prob-header">
+    <div class="eyebrow" data-r="up">o problema</div>
+    <h2 class="h2" data-r="up">Você joga, erra,<br><em>nunca evolui.</em></h2>
   </div>
-</section>
-
-<div class="divider-line"></div>
-
-<!-- STATS -->
-<div class="stats-full">
-  <div class="stats-row">
-    <div class="big-stat reveal">
-      <div class="big-stat-num"><span class="count-up" data-target="150">0</span>M+</div>
-      <div class="big-stat-label">jogadores registrados no League of Legends</div>
-      <div class="big-stat-bg">150M</div>
-    </div>
-    <div class="big-stat reveal" style="transition-delay:.1s">
-      <div class="big-stat-num"><span class="count-up" data-target="90">0</span>%</div>
-      <div class="big-stat-label">dos jogadores estão abaixo de Diamante — o público-alvo</div>
-      <div class="big-stat-bg">90%</div>
-    </div>
-    <div class="big-stat reveal" style="transition-delay:.2s">
-      <div class="big-stat-num"><span class="count-up" data-target="0">0</span></div>
-      <div class="big-stat-label">ferramentas com coaching por voz em tempo real durante a partida</div>
-      <div class="big-stat-bg">0</div>
-    </div>
-    <div class="big-stat reveal" style="transition-delay:.3s">
-      <div class="big-stat-num">2–4<span style="font-size:.5em">s</span></div>
-      <div class="big-stat-label">para o briefing da loading screen chegar antes de começar</div>
-      <div class="big-stat-bg">4s</div>
+  <div class="prob-track-wrap">
+    <div class="prob-track" id="ptrack">
+      <div class="prob-card"><div class="prob-n">01</div><h3>Feedback sempre tarde demais</h3><p>Dashboard pós-partida chega horas depois. O contexto emocional do erro já se perdeu completamente.</p></div>
+      <div class="prob-card"><div class="prob-n">02</div><h3>Coaching genérico sem contexto</h3><p>Dicas que não levam em conta sua matchup, quem é o jungle inimigo ou qual é o seu histórico.</p></div>
+      <div class="prob-card"><div class="prob-n">03</div><h3>Sem referência de evolução real</h3><p>Comparar com médias genéricas de elo não mostra se você está melhorando ou piorando de fato.</p></div>
+      <div class="prob-card"><div class="prob-n">04</div><h3>Voz em tempo real virou commodity</h3><p>ABSOL, STATUP.GG já fazem isso. O que vem depois do básico? O mercado ainda não respondeu.</p></div>
+      <div class="prob-card"><div class="prob-n">05</div><h3>Ninguém explica o porquê</h3><p>"Ward o pit" é instrução. Entender quando wardar, por que e o que o inimigo vai fazer — isso é coaching.</p></div>
     </div>
   </div>
 </div>
 
-<div class="divider-line"></div>
-
-<!-- FEATURES -->
-<section id="solucao">
-  <div class="section-label reveal">como funciona</div>
-  <h2 class="section-title reveal">Inteligência que <span>acompanha</span> seu jogo.</h2>
-  <div class="features-layout">
-    <div class="features-list">
-      <div class="feature-item reveal">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>
-        </div>
-        <div class="feature-text">
-          <h3>Voz em tempo real</h3>
-          <p>Feedback pelo áudio no momento exato do erro — sem precisar tirar os olhos da tela. Como ter um coach profissional sussurrando no seu ouvido.</p>
-        </div>
-      </div>
-      <div class="feature-item reveal" style="transition-delay:.1s">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
-        </div>
-        <div class="feature-text">
-          <h3>Briefing na loading screen</h3>
-          <p>Antes de a partida começar, o app analisa as 10 composições e entrega um briefing completo: strong side, fraquezas inimigas e riscos da sua matchup.</p>
-        </div>
-      </div>
-      <div class="feature-item reveal" style="transition-delay:.2s">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </div>
-        <div class="feature-text">
-          <h3>Evolução personalizada</h3>
-          <p>O sistema compara você com sua própria média histórica — não com estatística genérica. Você vê exatamente como evoluiu partida a partida.</p>
-        </div>
-      </div>
-      <div class="feature-item reveal" style="transition-delay:.3s">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-        </div>
-        <div class="feature-text">
-          <h3>Dashboard pós-partida</h3>
-          <p>Timeline completa de erros, gráficos de progresso e análise gerada por IA em linguagem natural. Entenda o que aconteceu, de verdade.</p>
-        </div>
-      </div>
+<!-- ══ STATS ══ -->
+<div class="stats-section">
+  <div class="stats-grid">
+    <div class="stat-col" data-r="up">
+      <div class="stat-num"><span class="cnum" data-to="150">0</span><span class="stat-unit">M+</span></div>
+      <div class="stat-desc">jogadores registrados em League of Legends</div>
     </div>
-    <div class="app-mockup reveal" style="transition-delay:.2s">
-      <div class="app-top-bar">
-        <div class="app-top-bar-dots">
-          <div class="app-dot r"></div>
-          <div class="app-dot y"></div>
-          <div class="app-dot g"></div>
-        </div>
-        <div class="app-top-title">lol_coach.exe</div>
-        <div class="app-live-badge"><div class="live-dot"></div>ao vivo</div>
-      </div>
-      <div class="app-body">
-        <div class="coach-msg">
-          <p>Você foi para o Drake sem visão. O inimigo poderia estar emboscando — coloca ward antes de objetivos.</p>
-          <div class="msg-meta"><span class="msg-cat">objetivo</span> 14:22 · jungle</div>
-        </div>
-        <div class="coach-msg">
-          <p>Seu CS/min está em 5.1 — você costuma fazer 6.8 com esse campeão. Priorize os camps entre os ganks.</p>
-          <div class="msg-meta"><span class="msg-cat">farm</span> 16:07 · jungle</div>
-        </div>
-        <div class="coach-msg">
-          <p>Baron em 50s. Sem smite disponível — peça ao time para não forçar o objetivo agora.</p>
-          <div class="msg-meta"><span class="msg-cat">objetivo</span> 19:10 · jungle</div>
-        </div>
-        <div class="app-stats-row">
-          <div class="app-stat">
-            <div class="av">6.2</div>
-            <div class="al">CS/MIN</div>
-            <div class="atrend">&#8593; +0.8</div>
-          </div>
-          <div class="app-stat">
-            <div class="av">3</div>
-            <div class="al">GANKS</div>
-            <div class="atrend">&#8593; +1</div>
-          </div>
-          <div class="app-stat">
-            <div class="av">2</div>
-            <div class="al">DRAKES</div>
-            <div class="atrend" style="color:#ef4444">&#8595; -1</div>
-          </div>
-        </div>
-      </div>
+    <div class="stat-col" data-r="up" data-d="100">
+      <div class="stat-num"><span class="cnum" data-to="90">0</span><span class="stat-unit">%</span></div>
+      <div class="stat-desc">dos jogadores estão abaixo de Diamante — o público-alvo</div>
+    </div>
+    <div class="stat-col" data-r="up" data-d="200">
+      <div class="stat-num">0</div>
+      <div class="stat-desc">ferramentas com histórico pessoal comparativo em tempo real</div>
+    </div>
+    <div class="stat-col" data-r="up" data-d="300">
+      <div class="stat-num">2–4<span class="stat-unit">s</span></div>
+      <div class="stat-desc">para o briefing completo chegar na loading screen</div>
     </div>
   </div>
+</div>
+
+<!-- ══ DIFERENCIAL ══ -->
+<section id="diferencial">
+<div class="vs-section">
+<div class="vs-wrap">
+  <div class="eyebrow" data-r="up">por que somos diferentes</div>
+  <h2 class="h2" data-r="up">Eles têm voz.<br><em>Nós temos memória.</em></h2>
+  <p class="body" data-r="up" style="margin-bottom:52px">Coaching por voz em tempo real é o novo padrão. O verdadeiro diferencial está no que nenhum player do mercado faz ainda.</p>
+
+  <div class="vs-labels">
+    <div class="vs-label-them">ABSOL / STATUP.GG</div>
+    <div></div>
+    <div class="vs-label-us" style="text-align:right">LOL COACH</div>
+  </div>
+
+  <div class="vs-rows">
+    <div class="vs-row hero-row" data-r="fade">
+      <div class="vs-them">Compara você com a média genérica do elo — um número que não diz nada sobre você<div class="strike"></div></div>
+      <div class="vs-mid">VS</div>
+      <div class="vs-us"><strong>Histórico pessoal comparativo</strong><p>O sistema aprende seu padrão partida a partida. "Você está 0.9 CS/min abaixo da sua própria média com esse campeão" — não com um Bronze aleatório.</p><span class="vs-badge badge-gold">exclusivo no mercado</span></div>
+    </div>
+    <div class="vs-row hero-row" data-r="fade">
+      <div class="vs-them">Nenhum briefing antes de a partida começar — você entra no jogo sem preparo tático<div class="strike"></div></div>
+      <div class="vs-mid">VS</div>
+      <div class="vs-us"><strong>Briefing na loading screen</strong><p>Antes do primeiro minuto você já sabe: strong side, fraquezas da composição inimiga, risco da sua matchup e o que o jungle inimigo vai fazer.</p><span class="vs-badge badge-gold">exclusivo no mercado</span></div>
+    </div>
+    <div class="vs-row" data-r="fade">
+      <div class="vs-them">Feedback genérico sem considerar o campeão inimigo na lane<div class="strike"></div></div>
+      <div class="vs-mid">VS</div>
+      <div class="vs-us"><strong>Matchup Engine contextualizado</strong><p>Cada feedback considera kill pressure por fase, spike de item e estilo de jogo. "Farm agressivo" contra Malzahar é diferente de contra Darius.</p></div>
+    </div>
+    <div class="vs-row" data-r="fade">
+      <div class="vs-them">Jungle Risk ausente — alertas de gank sem considerar o estado real do mapa<div class="strike"></div></div>
+      <div class="vs-mid">VS</div>
+      <div class="vs-us"><strong>Jungle Risk Index dinâmico</strong><p>Estado de alerta em tempo real: verde, amarelo, vermelho. Cruza posição do jungle inimigo, tempo sem avistamento e cobertura de wards.</p></div>
+    </div>
+    <div class="vs-row" data-r="fade">
+      <div class="vs-them">Instrução sem explicação — "ward o pit" não ensina nada<div class="strike"></div></div>
+      <div class="vs-mid">VS</div>
+      <div class="vs-us"><strong>Linguagem natural explicativa</strong><p>O sistema explica o raciocínio por trás de cada feedback. Não é só "o que fazer" — é por que fazer agora, nesta situação específica.</p></div>
+    </div>
+    <div class="vs-row" data-r="fade">
+      <div class="vs-them">Análise genérica igual para todas as roles</div>
+      <div class="vs-mid">VS</div>
+      <div class="vs-us"><strong>5 analisadores especializados</strong><p>Clear time para jungle, TP timing para top, vision score/min para support, power spike para ADC, roam windows para mid. Cada role, métricas próprias.</p><span class="vs-badge badge-blue">5 roles cobertas</span></div>
+    </div>
+  </div>
+</div>
+</div>
 </section>
 
-<div class="divider-line"></div>
+<!-- ══ FEATURES ══ -->
+<div class="div"></div>
+<section id="features">
+<div class="wrap">
+  <div class="eyebrow" data-r="up">funcionalidades</div>
+  <h2 class="h2" data-r="up">Tudo que você precisa<br><em>para subir de elo.</em></h2>
+  <div class="bento">
 
-<!-- HOW IT WORKS -->
-<section>
-  <div class="section-label reveal">processo</div>
-  <h2 class="section-title reveal">Simples de usar.<br><span>Poderoso por dentro.</span></h2>
-  <div class="steps">
-    <div class="step reveal">
-      <div class="step-num">01</div>
-      <h3>Abre e joga</h3>
-      <p>Instale o app, configure sua API key e abra o LoL. O coach detecta automaticamente quando uma partida começa.</p>
+    <div class="bc accent w2" data-r="up">
+      <div class="bc-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg></div>
+      <h3>Voz em tempo real — no momento certo</h3>
+      <p>Feedback pelo áudio no instante exato do erro. Farm, objetivos, gank timing, posicionamento. Sem tirar os olhos da tela. O CoachOrchestrator filtra o ruído e só fala quando realmente importa.</p>
+      <div class="mini-chat">
+        <div class="mc l">Baron em 40s. Sem smite disponível — não force o objetivo agora.</div>
+        <div class="mc r">entendido</div>
+        <div class="mc l">Jungle inimigo sumido há 70s. Alto risco de gank na sua lane.</div>
+      </div>
     </div>
-    <div class="step reveal" style="transition-delay:.15s">
-      <div class="step-num">02</div>
+
+    <div class="bc gold" data-r="up" data-d="80">
+      <div class="bc-icon g"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <h3>Histórico pessoal</h3>
+      <p>O único coach que te compara com você mesmo. Média móvel das suas últimas partidas por campeão e role.</p>
+      <div class="prog" id="prog-chart">
+        <div class="prog-row"><span class="prog-lbl">CS/min</span><div class="prog-track"><div class="prog-fill b" data-w="82"></div></div><span class="prog-val">6.4</span></div>
+        <div class="prog-row"><span class="prog-lbl">Vision</span><div class="prog-track"><div class="prog-fill g" data-w="65"></div></div><span class="prog-val">14.2</span></div>
+        <div class="prog-row"><span class="prog-lbl">Ganks</span><div class="prog-track"><div class="prog-fill b" data-w="58"></div></div><span class="prog-val">3.1</span></div>
+        <div class="prog-row"><span class="prog-lbl">Objetivos</span><div class="prog-track"><div class="prog-fill g" data-w="74"></div></div><span class="prog-val">2.3</span></div>
+      </div>
+      <span class="bc-excl">exclusivo no mercado</span>
+    </div>
+
+    <div class="bc" data-r="up" data-d="40">
+      <div class="bc-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg></div>
       <h3>Briefing na loading screen</h3>
-      <p>Antes de a partida começar, você já recebe a análise das composições, strong e weak side e o que esperar da sua matchup.</p>
+      <p>2–4 segundos após o loading começar você já tem: strong side, weak side, composição inimiga e a matchup da sua lane.</p>
+      <span class="bc-excl">exclusivo no mercado</span>
     </div>
-    <div class="step reveal" style="transition-delay:.3s">
-      <div class="step-num">03</div>
-      <h3>Coach fala durante o jogo</h3>
-      <p>Feedback por voz no momento exato — objetivos, farm, posicionamento e risco de gank. Contextualizado pela sua própria história.</p>
+
+    <div class="bc" data-r="up" data-d="120">
+      <div class="bc-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="m12 2 0 2m0 16 0 2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M2 12l2 0m16 0 2 0M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
+      <h3>Matchup Engine</h3>
+      <p>Kill pressure por fase, spike de item, estilo de jogo. O feedback muda de acordo com quem está no lado inimigo.</p>
     </div>
+
+    <div class="bc accent" data-r="left" data-d="60">
+      <div class="bc-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <h3>Jungle Risk Index</h3>
+      <p>Estado de alerta dinâmico atualizado em tempo real. Cruza posição, tempo sem avistamento e cobertura de wards.</p>
+      <div class="jri-pills">
+        <div class="jri-pill g"><div class="jri-dot"></div><span>Seguro</span><small>&lt;30s visto</small></div>
+        <div class="jri-pill y"><div class="jri-dot"></div><span>Incerto</span><small>60s sumido</small></div>
+        <div class="jri-pill r"><div class="jri-dot"></div><span>Perigo</span><small>sem ward</small></div>
+      </div>
+    </div>
+
+    <div class="bc" data-r="right" data-d="120">
+      <div class="bc-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="m8 21 4-4 4 4"/></svg></div>
+      <h3>App desktop leve</h3>
+      <p>C# nativo Windows. ~20MB de RAM. Roda em segundo plano sem impactar o jogo. Nenhum Electron, nenhum browser embutido.</p>
+    </div>
+
   </div>
+</div>
 </section>
 
-<div class="divider-line"></div>
-
-<!-- ROLES -->
+<!-- ══ ROLES ══ -->
+<div class="div"></div>
 <section id="roles">
-  <div class="section-label reveal">cobertura</div>
-  <h2 class="section-title reveal">Todas as <span>5 roles.</span></h2>
-  <p class="section-body reveal">Cada role tem suas heurísticas específicas. O sistema entende o que importa para cada posição.</p>
+<div class="wrap">
+  <div class="eyebrow" data-r="up">cobertura completa</div>
+  <h2 class="h2" data-r="up">Todas as <em>5 roles.</em><br>Heurísticas próprias.</h2>
+  <p class="body" data-r="up">Cada role tem métricas, benchmarks e lógica de feedback completamente diferentes.</p>
   <div class="roles-grid">
-    <div class="role-card reveal">
-      <div class="role-icon">&#9876;</div>
-      <h3>Top Lane</h3>
-      <p>Wave, teleport e split-push timing</p>
-      <div class="role-tags">
-        <span class="role-tag">wave</span>
-        <span class="role-tag">TP timing</span>
-        <span class="role-tag">gold diff</span>
-      </div>
-    </div>
-    <div class="role-card reveal" style="transition-delay:.1s">
-      <div class="role-icon">&#128064;</div>
-      <h3>Jungle</h3>
-      <p>Clear time, ganks e rotação de objetivos</p>
-      <div class="role-tags">
-        <span class="role-tag">clear time</span>
-        <span class="role-tag">gank timing</span>
-        <span class="role-tag">dragon/baron</span>
-      </div>
-    </div>
-    <div class="role-card reveal" style="transition-delay:.2s">
-      <div class="role-icon">&#9889;</div>
-      <h3>Mid Lane</h3>
-      <p>Roam windows, CS e priority</p>
-      <div class="role-tags">
-        <span class="role-tag">roam</span>
-        <span class="role-tag">CS/min</span>
-        <span class="role-tag">priority</span>
-      </div>
-    </div>
-    <div class="role-card reveal" style="transition-delay:.3s">
-      <div class="role-icon">&#127919;</div>
-      <h3>ADC</h3>
-      <p>Farm, power spikes e posicionamento</p>
-      <div class="role-tags">
-        <span class="role-tag">farm</span>
-        <span class="role-tag">item spike</span>
-        <span class="role-tag">teamfight</span>
-      </div>
-    </div>
-    <div class="role-card reveal" style="transition-delay:.4s">
-      <div class="role-icon">&#128737;</div>
-      <h3>Support</h3>
-      <p>Visão, engage timing e peel</p>
-      <div class="role-tags">
-        <span class="role-tag">vision score</span>
-        <span class="role-tag">ward obj</span>
-        <span class="role-tag">engage</span>
-      </div>
-    </div>
+    <div class="role-card" data-r="up"><span class="role-ico">⚔️</span><h3>Top Lane</h3><p>Ilha isolada</p><div class="role-ins"><span class="ri">wave + TP</span><span class="ri">split-push</span><span class="ri">gold diff</span></div></div>
+    <div class="role-card" data-r="up" data-d="80"><span class="role-ico">👁️</span><h3>Jungle</h3><p>Controla o mapa</p><div class="role-ins"><span class="ri">clear time</span><span class="ri">gank timing</span><span class="ri">objetivos</span></div></div>
+    <div class="role-card" data-r="up" data-d="160"><span class="role-ico">⚡</span><h3>Mid Lane</h3><p>Influência total</p><div class="role-ins"><span class="ri">roam windows</span><span class="ri">CS/min</span><span class="ri">priority</span></div></div>
+    <div class="role-card" data-r="up" data-d="240"><span class="role-ico">🎯</span><h3>ADC</h3><p>Farm e timing</p><div class="role-ins"><span class="ri">power spike</span><span class="ri">custo morte</span><span class="ri">teamfight</span></div></div>
+    <div class="role-card" data-r="up" data-d="320"><span class="role-ico">🛡️</span><h3>Support</h3><p>Visão e engages</p><div class="role-ins"><span class="ri">vision score</span><span class="ri">ward obj</span><span class="ri">engage</span></div></div>
   </div>
+</div>
 </section>
 
-<div class="divider-line"></div>
+<!-- ══ STEPS ══ -->
+<div class="div"></div>
+<section>
+<div class="wrap">
+  <div class="eyebrow" data-r="up">como funciona</div>
+  <h2 class="h2" data-r="up">Abre, joga, <em>evolui.</em></h2>
+  <div class="steps-grid">
+    <div class="step" data-r="up"><div class="step-n">01</div><h3>Instala e esquece</h3><p>App leve para Windows. Setup em menos de 1 minuto. O coach detecta automaticamente quando uma partida começa.</p></div>
+    <div class="step" data-r="up" data-d="150"><div class="step-n">02</div><h3>Briefing antes de começar</h3><p>Na loading screen você recebe a análise das composições, matchups e estratégia ideal para aquela partida.</p></div>
+    <div class="step" data-r="up" data-d="300"><div class="step-n">03</div><h3>Coach durante e depois</h3><p>Voz em tempo real com contexto do seu histórico. Dashboard pós-partida comparando você com você mesmo.</p></div>
+  </div>
+</div>
+</section>
 
-<!-- CTA -->
+<!-- ══ CTA ══ -->
 <div class="cta-section" id="cta">
-  <div class="cta-glow"></div>
+  <div class="cta-bg"></div>
+  <div class="cta-overlay"></div>
   <div class="cta-inner">
-    <div class="section-label reveal" style="justify-content:center">acesso antecipado</div>
-    <h2 class="cta-title reveal">Pronto para <span>subir de elo</span> de verdade?</h2>
-    <p class="cta-sub reveal">Estamos selecionando os primeiros usuários. Entre na lista e seja um dos primeiros a ter um coach de IA do seu lado durante as partidas.</p>
-    <div class="reveal" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-      <a href="#" class="btn-primary" style="font-size:16px;padding:16px 40px">Quero acesso antecipado</a>
-    </div>
-    <p class="cta-note reveal">Sem spam. Você recebe um aviso quando o beta abrir.</p>
+    <div class="eyebrow" data-r="up" style="justify-content:center;">acesso antecipado</div>
+    <h2 class="cta-title" data-r="up">Pronto para um coach<br>que <em>aprende com você?</em></h2>
+    <p class="cta-sub" data-r="up">Estamos formando o grupo de acesso antecipado. Seja um dos primeiros a ter o coaching mais contextualizado do mercado brasileiro de LoL.</p>
+    <div data-r="up"><a href="#" class="btn btn-primary" style="font-size:16px;padding:18px 48px;">Quero acesso antecipado</a></div>
+    <p class="cta-note" data-r="fade">Sem spam. Notificação apenas quando o beta abrir.</p>
   </div>
 </div>
 
-<!-- FOOTER -->
+<!-- ══ FOOTER ══ -->
 <footer>
-  <div class="footer-logo">LOL COACH</div>
-  <div class="footer-copy">© 2025 LoL Coach. Produto independente, não afiliado à Riot Games.</div>
-  <div class="footer-links">
-    <a href="#">Privacidade</a>
-    <a href="#">Termos</a>
-    <a href="#">Contato</a>
-  </div>
+  <div class="footer-brand">LOL COACH</div>
+  <div class="footer-copy">© 2025 LoL Coach · Não afiliado à Riot Games</div>
+  <div class="footer-links"><a href="#">Privacidade</a><a href="#">Termos</a><a href="#">Contato</a></div>
 </footer>
 
 <script>
-// ─── SCROLL REVEAL ───
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      e.target.classList.add('visible');
-      observer.unobserve(e.target);
+/* ─ CURSOR ─ */
+const cur=document.getElementById('cur'),ctr=document.getElementById('ctr');
+let mx=0,my=0,tx=0,ty=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+(function raf(){tx+=(mx-tx)*.13;ty+=(my-ty)*.13;ctr.style.left=tx+'px';ctr.style.top=ty+'px';requestAnimationFrame(raf);})();
+
+/* ─ SPLASH SLIDER ─ */
+const slides=['slide-0','slide-1','slide-2'];
+const names=['Jinx — Get Excited!','Yasuo — The Unforgiven','Ahri — The Nine-Tailed Fox'];
+let cur_slide=0,slidetimer;
+function goSlide(n){
+  document.getElementById(slides[cur_slide]).classList.remove('active');
+  document.querySelectorAll('.sdot')[cur_slide].classList.remove('active');
+  cur_slide=n;
+  document.getElementById(slides[cur_slide]).classList.add('active');
+  document.querySelectorAll('.sdot')[cur_slide].classList.add('active');
+  document.getElementById('sname').textContent=names[cur_slide];
+  clearInterval(slidetimer);
+  slidetimer=setInterval(()=>goSlide((cur_slide+1)%3),6000);
+}
+slidetimer=setInterval(()=>goSlide((cur_slide+1)%3),6000);
+
+/* ─ NAV SCROLL ─ */
+window.addEventListener('scroll',()=>document.getElementById('nav').classList.toggle('solid',scrollY>60));
+
+/* ─ CLOCK ─ */
+let cm=14,cs=38;
+setInterval(()=>{cs++;if(cs>=60){cs=0;cm++;}const e=document.getElementById('hclock');if(e)e.textContent=String(cm).padStart(2,'0')+':'+String(cs).padStart(2,'0');},1000);
+
+/* ─ PROBLEM TRACK AUTO SCROLL ─ */
+(function(){
+  const t=document.getElementById('ptrack');if(!t)return;
+  let pos=0,dir=1,last=0,paused=false;
+  t.addEventListener('mouseenter',()=>paused=true);
+  t.addEventListener('mouseleave',()=>paused=false);
+  (function f(ts){
+    if(!paused&&ts-last>16){
+      pos+=dir*.6;
+      const max=t.scrollWidth-t.parentElement.offsetWidth;
+      if(pos>=max)dir=-1;if(pos<=0)dir=1;
+      t.style.transform=`translateX(${-pos}px)`;last=ts;
+    }
+    requestAnimationFrame(f);
+  })(0);
+})();
+
+/* ─ SCROLL REVEAL ─ */
+const ro=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const el=e.target,d=parseInt(el.dataset.d)||0;
+      setTimeout(()=>el.classList.add('on'),d);
+      ro.unobserve(el);
     }
   });
-}, { threshold: 0.12 });
+},{threshold:.1});
+document.querySelectorAll('[data-r]').forEach(el=>ro.observe(el));
 
-document.querySelectorAll('.reveal, .feature-item, .step, .role-card').forEach(el => {
-  observer.observe(el);
-});
+/* ─ STRIKE-THROUGH ON SCROLL ─ */
+const so=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('struck');so.unobserve(e.target);}});
+},{threshold:.4});
+document.querySelectorAll('.vs-them').forEach(el=>so.observe(el));
 
-// ─── COUNT UP ───
-const countObserver = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      const el = e.target;
-      const target = parseInt(el.dataset.target);
-      if (target === 0) { el.textContent = '0'; return; }
-      let start = 0;
-      const duration = 1400;
-      const step = target / (duration / 16);
-      const timer = setInterval(() => {
-        start += step;
-        if (start >= target) { start = target; clearInterval(timer); }
-        el.textContent = Math.floor(start);
-      }, 16);
-      countObserver.unobserve(el);
+/* ─ COUNT UP ─ */
+const co=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const el=e.target,to=+el.dataset.to,dur=1400;
+      let s=null;
+      (function f(ts){if(!s)s=ts;const p=Math.min((ts-s)/dur,1);el.textContent=Math.floor(p*to);if(p<1)requestAnimationFrame(f);})(performance.now());
+      co.unobserve(el);
     }
   });
-}, { threshold: 0.5 });
-document.querySelectorAll('.count-up').forEach(el => countObserver.observe(el));
+},{threshold:.5});
+document.querySelectorAll('.cnum').forEach(el=>co.observe(el));
 
-// ─── HUD TIMER ───
-let mins = 18, secs = 42;
-setInterval(() => {
-  secs++;
-  if (secs >= 60) { secs = 0; mins++; }
-  const t = document.getElementById('hud-timer');
-  if (t) t.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
-}, 1000);
+/* ─ PROGRESS BARS ─ */
+const po=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.querySelectorAll('.prog-fill').forEach(b=>b.style.width=b.dataset.w+'%');
+      po.unobserve(e.target);
+    }
+  });
+},{threshold:.4});
+const pc=document.getElementById('prog-chart');
+if(pc)po.observe(pc);
 
-// ─── NAVBAR SCROLL ───
-window.addEventListener('scroll', () => {
-  const nav = document.querySelector('nav');
-  if (window.scrollY > 60) {
-    nav.style.borderBottomColor = 'rgba(37,99,235,.25)';
-  } else {
-    nav.style.borderBottomColor = 'rgba(37,99,235,.15)';
-  }
-});
-
-// ─── PARALLAX ORB ───
-window.addEventListener('mousemove', (e) => {
-  const orb = document.querySelector('.hero-orb');
-  if (!orb) return;
-  const x = (e.clientX / window.innerWidth - .5) * 30;
-  const y = (e.clientY / window.innerHeight - .5) * 30;
-  orb.style.transform = `translate(${x}px, ${y}px)`;
+/* ─ PARALLAX HERO ─ */
+window.addEventListener('scroll',()=>{
+  const sy=scrollY,h=document.querySelector('.hero-content');
+  if(h&&sy<window.innerHeight)h.style.transform=`translateY(${sy*.25}px)`;
 });
 </script>
 </body>
